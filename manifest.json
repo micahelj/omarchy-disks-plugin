@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "athesias.disks",
+  "name": "Disks",
+  "version": "1.0.0",
+  "author": "athesias",
+  "license": "MIT",
+  "description": "Read-only disk usage overview: every drive's fill level, with click-to-expand folder breakdowns.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Disks",
+    "description": "How full each drive is, with the biggest folders on click",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
