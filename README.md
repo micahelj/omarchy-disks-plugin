@@ -25,6 +25,16 @@ To place it somewhere specific on the bar:
 omarchy bar move athesias.disks --section right --before omarchy.network
 ```
 
+## Remove
+
+```bash
+omarchy plugin remove athesias.disks
+```
+
+This takes the widget off the bar and deletes its folder from
+`~/.config/omarchy/plugins/`. To keep it installed but hidden, use
+`omarchy plugin disable athesias.disks` instead.
+
 ## Using it
 
 - **Click the icon** to open the popup. Each mounted drive gets a card with its
