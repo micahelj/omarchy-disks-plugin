@@ -111,8 +111,16 @@ def drives():
     return result
 
 
-def du(args):
-    out = run(["du", "-x", "-B1"] + args)
+def mount_targets():
+    out = run(["findmnt", "-J", "-l", "-o", "TARGET"])
+    try:
+        return [fs.get("target") or "" for fs in json.loads(out.stdout).get("filesystems", [])]
+    except ValueError:
+        return []
+
+
+def du(args, one_fs=True):
+    out = run(["du"] + (["-x"] if one_fs else []) + ["-B1"] + args)
     sizes = {}
     for line in out.stdout.splitlines():
         size, _, path = line.partition("\t")
@@ -127,20 +135,33 @@ def scan(path):
     if not os.path.isdir(path):
         return {"path": path, "error": "Not a folder", "entries": [], "total": 0, "denied": 0}
 
-    sizes, denied = du(["-a", "-d1", "--", path])
-    total = sizes.pop(path, 0)
-    entries = {p: s for p, s in sizes.items() if os.path.dirname(p) == path}
-
-    # Other mounts of the same device nested below this path (btrfs subvolumes
-    # like /home and /var/log under /) are skipped by du -x, so measure them
-    # separately and credit them to the child folder they live under.
     device = None
+    fstype = ""
     mounts = real_mounts()
     for m in sorted(mounts, key=lambda m: len(m["target"]), reverse=True):
         if path == m["target"] or path.startswith(m["target"].rstrip("/") + "/"):
             device = m["device"]
+            fstype = m["fstype"]
             break
     prefix = path.rstrip("/") + "/"
+
+    if fstype == "btrfs":
+        # Every btrfs subvolume has its own device number, so du -x stops at
+        # unmounted subvolumes (e.g. @ and @home on a top-level mount). Cross
+        # them, but exclude anything actually mounted below this path.
+        excludes = [
+            "--exclude=" + re.sub(r"([*?\[\\])", r"\\\1", t)
+            for t in mount_targets() if t.startswith(prefix) and t != path
+        ]
+        sizes, denied = du(excludes + ["-a", "-d1", "--", path], one_fs=False)
+    else:
+        sizes, denied = du(["-a", "-d1", "--", path])
+    total = sizes.pop(path, 0)
+    entries = {p: s for p, s in sizes.items() if os.path.dirname(p) == path}
+
+    # Other mounts of the same device nested below this path (btrfs subvolumes
+    # like /home and /var/log under /) are skipped above, so measure them
+    # separately and credit them to the child folder they live under.
     for m in mounts:
         target = m["target"]
         if m["device"] != device or not target.startswith(prefix) or target == path:
